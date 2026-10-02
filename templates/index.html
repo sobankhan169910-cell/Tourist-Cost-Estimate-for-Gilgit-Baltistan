@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Tour Cost Estimator - Plan Your Guided Tour{% endblock %}
+
+{% block content %}
+<div class="calculator-wrapper">
+    <!-- Hero Banner -->
+    <div class="hero-section">
+        <h1 class="hero-title">Accurate Guided Tour Cost Estimations</h1>
+        <p class="hero-subtitle">
+            Calculate comprehensive tour costs, itemized breakdowns, historical market ranges, and linear price forecasts using high-performance NumPy calculations.
+        </p>
+    </div>
+
+    <!-- Main Form Grid -->
+    <div class="form-card-container">
+        <div class="card form-card">
+            <div class="card-header">
+                <h2>Tour Parameters</h2>
+                <span class="badge badge-info">Step 1 of 1</span>
+            </div>
+            
+            <form id="tourEstimatorForm" action="{{ url_for('index') }}" method="POST" novalidate>
+                <div class="form-grid">
+                    <!-- Days Input -->
+                    <div class="form-group">
+                        <label for="days" class="form-label">
+                            <span class="label-icon">📅</span> Number of Days
+                        </label>
+                        <input 
+                            type="number" 
+                            id="days" 
+                            name="days" 
+                            class="form-control" 
+                            placeholder="e.g. 5" 
+                            min="1" 
+                            step="1"
+                            value="{{ form_data.days if form_data else '' }}" 
+                            required
+                        >
+                        <small class="form-hint">Total duration of the guided tour (positive integer).</small>
+                        <div class="field-error" id="daysError"></div>
+                    </div>
+
+                    <!-- Group Size Input -->
+                    <div class="form-group">
+                        <label for="group_size" class="form-label">
+                            <span class="label-icon">👥</span> Group Size (Travelers)
+                        </label>
+                        <input 
+                            type="number" 
+                            id="group_size" 
+                            name="group_size" 
+                            class="form-control" 
+                            placeholder="e.g. 4" 
+                            min="1" 
+                            step="1"
+                            value="{{ form_data.group_size if form_data else '' }}" 
+                            required
+                        >
+                        <small class="form-hint">Number of persons traveling (positive integer).</small>
+                        <div class="field-error" id="groupSizeError"></div>
+                    </div>
+
+                    <!-- Season Dropdown -->
+                    <div class="form-group">
+                        <label for="season" class="form-label">
+                            <span class="label-icon">🌤️</span> Travel Season
+                        </label>
+                        <select id="season" name="season" class="form-select" required>
+                            <option value="" disabled {% if not form_data or not form_data.season %}selected{% endif %}>Select a Season...</option>
+                            <option value="Low" {% if form_data and form_data.season == 'Low' %}selected{% endif %}>
+                                Low Season (0.8× — 20% Off-Peak Savings)
+                            </option>
+                            <option value="Shoulder" {% if form_data and form_data.season == 'Shoulder' %}selected{% endif %}>
+                                Shoulder Season (1.0× — Standard Pricing)
+                            </option>
+                            <option value="Peak" {% if form_data and form_data.season == 'Peak' %}selected{% endif %}>
+                                Peak Season (1.3× — High Demand Period)
+                            </option>
+                        </select>
+                        <small class="form-hint">Affects base category daily rates.</small>
+                        <div class="field-error" id="seasonError"></div>
+                    </div>
+
+                    <!-- Comfort Level Dropdown -->
+                    <div class="form-group">
+                        <label for="comfort_level" class="form-label">
+                            <span class="label-icon">🏨</span> Comfort Level
+                        </label>
+                        <select id="comfort_level" name="comfort_level" class="form-select" required>
+                            <option value="" disabled {% if not form_data or not form_data.comfort_level %}selected{% endif %}>Select Comfort Tier...</option>
+                            <option value="Budget" {% if form_data and form_data.comfort_level == 'Budget' %}selected{% endif %}>
+                                Budget (Essential lodging &amp; shared transport)
+                            </option>
+                            <option value="Standard" {% if form_data and form_data.comfort_level == 'Standard' %}selected{% endif %}>
+                                Standard (Comfortable hotels &amp; dedicated transport)
+                            </option>
+                            <option value="Luxury" {% if form_data and form_data.comfort_level == 'Luxury' %}selected{% endif %}>
+                                Luxury (Premium suites, private guide &amp; VIP transport)
+                            </option>
+                        </select>
+                        <small class="form-hint">Determines tier column from pricing matrix.</small>
+                        <div class="field-error" id="comfortError"></div>
+                    </div>
+                </div>
+
+                <!-- Group Discount Banner -->
+                <div class="discount-callout">
+                    <span class="callout-icon">🎁</span>
+                    <div class="callout-text">
+                        <strong>Group Advantage:</strong> Groups of 5 or more automatically receive an instant <strong>10% discount</strong> on all categories!
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="submit" id="submitBtn" class="btn btn-primary btn-large">
+                        <span class="btn-text">Estimate Tour Cost</span>
+                        <span class="spinner hidden" id="loadingSpinner"></span>
+                    </button>
+                    <button type="reset" class="btn btn-outline" id="resetBtn">Reset</button>
+                </div>
+            </form>
+
+            <!-- Quick Presets for Convenient Testing -->
+            <div class="presets-section">
+                <span class="presets-title">Quick Test Presets:</span>
+                <div class="preset-buttons">
+                    <button type="button" class="btn btn-chip" onclick="applyPreset(3, 2, 'Shoulder', 'Standard')">
+                        Couple Getaway (3d, 2p, Standard)
+                    </button>
+                    <button type="button" class="btn btn-chip" onclick="applyPreset(5, 4, 'Peak', 'Standard')">
+                        Family Holiday (5d, 4p, Peak)
+                    </button>
+                    <button type="button" class="btn btn-chip" onclick="applyPreset(7, 6, 'Low', 'Luxury')">
+                        Group Retreat (7d, 6p, Luxury + 10% Off)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar / Features Overview -->
+        <aside class="sidebar-info">
+            <div class="card info-card">
+                <h3>Included in Every Estimate</h3>
+                <ul class="feature-list">
+                    <li>
+                        <span class="feature-icon">🏨</span>
+                        <div>
+                            <strong>Hotel &amp; Lodging</strong>
+                            <p>Daily per-person accommodation rate</p>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="feature-icon">🚐</span>
+                        <div>
+                            <strong>Transport &amp; Transfers</strong>
+                            <p>Fuel, vehicle rental, and driver allowance</p>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="feature-icon">🍽️</span>
+                        <div>
+                            <strong>Food &amp; Dining</strong>
+                            <p>Breakfast, lunch, and regional dinners</p>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="feature-icon">🧑‍🌾</span>
+                        <div>
+                            <strong>Licensed Tour Guide</strong>
+                            <p>Professional certified tour accompaniment</p>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="feature-icon">🎫</span>
+                        <div>
+                            <strong>Park &amp; Site Permits</strong>
+                            <p>Entry passes, national park access &amp; taxes</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}

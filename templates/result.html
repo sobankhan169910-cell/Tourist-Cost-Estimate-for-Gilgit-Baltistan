@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Tour Cost Estimate - {{ estimate.inputs.days }} Days, {{ estimate.inputs.group_size }} Person(s){%
+endblock %}
+
+{% block content %}
+<div class="result-wrapper">
+    <!-- Top Action Bar -->
+    <div class="result-action-bar">
+        <a href="{{ url_for('index') }}" class="btn btn-outline">
+            &larr; Back to Calculator
+        </a>
+        <button type="button" class="btn btn-secondary" onclick="window.print()">
+            🖨️ Print / Save PDF
+        </button>
+    </div>
+
+    <!-- Highlight Summary Cards -->
+    <div class="hero-summary-grid">
+        <!-- Total Cost Card -->
+        <div class="card metric-card metric-primary">
+            <div class="metric-label">TOTAL TRIP ESTIMATE</div>
+            <div class="metric-value">${{ "%.2f"|format(estimate.total_cost) }}</div>
+            <div class="metric-subtext">
+                For {{ estimate.inputs.group_size }} traveler{% if estimate.inputs.group_size > 1 %}s{% endif %} over {{
+                estimate.inputs.days }} day{% if estimate.inputs.days > 1 %}s{% endif %}
+            </div>
+            {% if estimate.inputs.group_discount_applied %}
+            <div class="badge badge-discount">
+                🎉 10% Group Discount Applied
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Cost Per Person Card -->
+        <div class="card metric-card metric-secondary">
+            <div class="metric-label">COST PER PERSON</div>
+            <div class="metric-value">${{ "%.2f"|format(estimate.cost_per_person) }}</div>
+            <div class="metric-subtext">
+                ${{ "%.2f"|format(estimate.cost_per_person / estimate.inputs.days) }} per day / person
+            </div>
+            <div class="badge badge-season">
+                {{ estimate.inputs.season }} Season ({{ estimate.inputs.season_multiplier }}×)
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Results Layout -->
+    <div class="results-main-grid">
+        <!-- Left Column: Trip Details & Itemized Breakdown -->
+        <div class="results-column-left">
+            <!-- Trip Parameters Card -->
+            <div class="card details-card">
+                <div class="card-header">
+                    <h3>Trip Configuration</h3>
+                    <span class="badge badge-tier">{{ estimate.inputs.comfort_level }} Tier</span>
+                </div>
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <span class="detail-label">Duration</span>
+                        <span class="detail-value">{{ estimate.inputs.days }} Days</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Group Size</span>
+                        <span class="detail-value">{{ estimate.inputs.group_size }} Person{% if
+                            estimate.inputs.group_size > 1 %}s{% endif %}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Season Multiplier</span>
+                        <span class="detail-value">{{ estimate.inputs.season }} ({{ estimate.inputs.season_multiplier
+                            }}×)</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Comfort Tier</span>
+                        <span class="detail-value">{{ estimate.inputs.comfort_level }}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Group Discount</span>
+                        <span class="detail-value">
+                            {% if estimate.inputs.group_discount_applied %}
+                            <span class="text-success font-bold">10% Active</span>
+                            {% else %}
+                            <span>None (Requires 5+ pax)</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Itemized Breakdown Card -->
+            <div class="card breakdown-card">
+                <div class="card-header">
+                    <h3>Itemized Cost Breakdown</h3>
+                    <span class="badge badge-info">NumPy Vectorized</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="breakdown-table">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th class="text-right">Total Cost</th>
+                                <th class="text-right">Share of Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for category, cost in estimate.itemized_breakdown.items() %}
+                            {% set percentage = (cost / estimate.total_cost * 100) if estimate.total_cost > 0 else 0 %}
+                            <tr>
+                                <td>
+                                    <div class="category-name-cell">
+                                        <span class="cat-icon">
+                                            {% if category == 'Hotel' %}🏨
+                                            {% elif category == 'Transport' %}🚐
+                                            {% elif category == 'Food' %}🍽️
+                                            {% elif category == 'Guide' %}🧑‍🌾
+                                            {% elif category == 'Permits' %}🎫
+                                            {% else %}📌{% endif %}
+                                        </span>
+                                        <strong>{{ category }}</strong>
+                                    </div>
+                                </td>
+                                <td class="text-right">
+                                    <span class="cost-amount">${{ "%.2f"|format(cost) }}</span>
+                                </td>
+                                <td class="text-right">
+                                    <div class="share-cell">
+                                        <span class="share-percent">{{ "%.1f"|format(percentage) }}%</span>
+                                        <div class="progress-bar-bg">
+                                            <div class="progress-bar-fill" style="width: {{ percentage }}%;"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="total-row">
+                                <th>Combined Total</th>
+                                <th class="text-right">${{ "%.2f"|format(estimate.total_cost) }}</th>
+                                <th class="text-right">100.0%</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Historical Benchmark & Forecast -->
+        <div class="results-column-right">
+            <!-- Historical Benchmark Card -->
+            <div class="card benchmark-card">
+                <div class="card-header">
+                    <h3>Historical Price Range</h3>
+                    <span class="badge badge-stat">NumPy Percentiles</span>
+                </div>
+                <p class="section-description">
+                    Based on historical trip cost distributions across past client tours:
+                </p>
+
+                <div class="percentile-grid">
+                    <div class="percentile-box low-box">
+                        <div class="p-header">Low (25th %)</div>
+                        <div class="p-value">${{ "%.2f"|format(estimate.historical_price_range.low) }}</div>
+                        <div class="p-desc">Budget benchmark</div>
+                    </div>
+                    <div class="percentile-box typical-box">
+                        <div class="p-header">Typical (Median)</div>
+                        <div class="p-value">${{ "%.2f"|format(estimate.historical_price_range.typical) }}</div>
+                        <div class="p-desc">50th percentile</div>
+                    </div>
+                    <div class="percentile-box high-box">
+                        <div class="p-header">High (75th %)</div>
+                        <div class="p-value">${{ "%.2f"|format(estimate.historical_price_range.high) }}</div>
+                        <div class="p-desc">Peak benchmark</div>
+                    </div>
+                </div>
+
+                <div class="benchmark-note">
+                    <small>Calculated using <code>numpy.percentile()</code> over verified past trips data.</small>
+                </div>
+            </div>
+
+            <!-- Linear Price Forecast Card -->
+            <div class="card forecast-card">
+                <div class="card-header">
+                    <h3>Historical Linear Forecast</h3>
+                    <span class="badge badge-forecast">NumPy Polyfit</span>
+                </div>
+                {% if estimate.forecast %}
+                <div class="forecast-result">
+                    <div class="forecast-price-box">
+                        <span class="forecast-label">Projected Historical Trend Cost for {{ estimate.inputs.days }}
+                            Days:</span>
+                        <span class="forecast-value">${{ "%.2f"|format(estimate.forecast.forecast_price) }}</span>
+                    </div>
+                    <div class="forecast-details">
+                        <div class="forecast-math">
+                            <strong>Fitted Linear Model:</strong>
+                            <code>{{ estimate.forecast.formula }}</code>
+                        </div>
+                        <p class="forecast-explanation">
+                            This forecast applies a 1st-degree polynomial regression (<code>numpy.polyfit</code> and
+                            <code>numpy.polyval</code>) on historical trip durations versus costs. Note that your
+                            customized estimate above incorporates group size, season multipliers, and comfort level
+                            adjustments.
+                        </p>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted">
+                    Insufficient distinct historical trip durations to compute linear regression.
+                </p>
+                {% endif %}
+            </div>
+
+            <!-- JSON API Banner -->
+            <div class="card api-card">
+                <h4>Programmatic API</h4>
+                <p>Access this calculation engine programmatically via JSON API:</p>
+                <div class="api-code-snippet">
+                    <code>POST /api/estimate</code>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Action CTA -->
+    <div class="bottom-actions">
+        <a href="{{ url_for('index') }}" class="btn btn-primary btn-large">
+            ➕ Calculate Another Tour
+        </a>
+    </div>
+</div>
+{% endblock %}
